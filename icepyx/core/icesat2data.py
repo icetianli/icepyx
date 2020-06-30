@@ -879,7 +879,7 @@ class Icesat2Data():
                 extent_flag = ((lonmax - lonmin) > 5) or ((latmax - latmin) > 5)
 
                 if not extent_flag:
-                    print ('OpenAltimetry')
+                    print ('Requesting data from OpenAltimetry...')
                     para_lists = self.file_meta()
                     ### Parallel processing ###
                     pool = concurrent.futures.ThreadPoolExecutor(max_workers=20)
@@ -904,6 +904,8 @@ class Icesat2Data():
                     colorbar = fig2.colorbar(cs, ax=ax2)
                     colorbar.set_label('Elevation(m)', fontsize=15)
                     colorbar.ax.tick_params(labelsize=15)
+                    
+                    self.OA_data = gdf_OA
 
         plt.tight_layout()
         plt.show()
