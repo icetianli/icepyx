@@ -1,7 +1,3 @@
-import datetime as dt
-import os
-import requests
-import json
 import warnings
 import pprint
 import time
@@ -15,26 +11,9 @@ import matplotlib.pyplot as plt
 import concurrent.futures
 from pyproj import CRS
 
-from icepyx.core.Earthdata import Earthdata
-import icepyx.core.APIformatting as apifmt
-import icepyx.core.is2ref as is2ref
-import icepyx.core.granules as granules
-from icepyx.core.granules import Granules as Granules
-#QUESTION: why doesn't from granules import Granules as Granules work, since granules=icepyx.core.granules?
-# from icepyx.core.granules import Granules
-from icepyx.core.variables import Variables as Variables
-import icepyx.core.geospatial as geospatial
-import icepyx.core.validate_inputs as val
 
-#DevGoal: update docs throughout to allow for polygon spatial extent
-#Note: add files to docstring once implemented
-#DevNote: currently this class is not tested
-class Icesat2Data():
-    """
-    ICESat-2 Data object to query, obtain, and perform basic operations on
-    available ICESat-2 datasets using temporal and spatial input parameters.
-    Allows the easy input and formatting of search parameters to match the
-    NASA NSIDC DAAC and (development goal-not yet implemented) conversion to multiple data types.
+class Icesat2Data:
+    def __init__(self,):
 
     Parameters
     ----------
@@ -87,7 +66,7 @@ class Icesat2Data():
     <icepyx.core.icesat2data.Icesat2Data at [location]>
 
     Initializing Icesat2Data with a list of polygon vertex coordinate pairs.
-   
+
     >>> reg_a_poly = [(-55, 68), (-55, 71), (-48, 71), (-48, 68), (-55, 68)]
     >>> reg_a_dates = ['2019-02-20','2019-02-28']
     >>> reg_a = icepyx.icesat2data.Icesat2Data('ATL06', reg_a_poly, reg_a_dates)
@@ -95,7 +74,7 @@ class Icesat2Data():
     <icepyx.core.icesat2data.Icesat2Data at [location]>
 
     Initializing Icesat2Data with a geospatial polygon file.
-   
+
     >>> aoi = '/User/name/location/aoi.shp'
     >>> reg_a_dates = ['2019-02-22','2019-02-28']
     >>> reg_a = icepyx.icesat2data.Icesat2Data('ATL06', aoi, reg_a_dates)
@@ -120,7 +99,7 @@ class Icesat2Data():
 
         # warnings.filterwarnings("always")
         # warnings.warn("Please note: as of 2020-05-05, a major reorganization of the core icepyx.icesat2data code may result in errors produced by now depricated functions. Please see our documentation pages or example notebooks for updates.")
-        
+
         if (dataset is None or spatial_extent is None or date_range is None) and files is None:
             raise ValueError("Please provide the required inputs. Use help([function]) to view the function's documentation")
 
@@ -137,9 +116,9 @@ class Icesat2Data():
         self.extent_type, self._spat_extent, self._geom_filepath = val.spatial(spatial_extent)
 
         self._start, self._end = val.temporal(date_range, start_time, end_time)
- 
+
         self._version = val.dset_version(self.latest_version(), version)
-        
+
 
     # ----------------------------------------------------------------------
     # Properties
@@ -256,7 +235,7 @@ class Icesat2Data():
     def CMRparams(self):
         """
         Display the CMR key:value pairs that will be submitted. It generates the dictionary if it does not already exist.
-        
+
         Examples
         --------
         >>> reg_a = icepyx.icesat2data.Icesat2Data('ATL06',[-55, 68, -48, 71],['2019-02-20','2019-02-28'])
@@ -267,7 +246,7 @@ class Icesat2Data():
         'bounding_box': '-55,68,-48,71'}
         """
 
-        if not hasattr(self, '_CMRparams'): 
+        if not hasattr(self, '_CMRparams'):
             self._CMRparams = apifmt.Parameters('CMR')
         # print(self._CMRparams)
         # print(self._CMRparams.fmted_keys)
@@ -282,7 +261,7 @@ class Icesat2Data():
     def reqparams(self):
         """
         Display the required key:value pairs that will be submitted. It generates the dictionary if it does not already exist.
-        
+
         Examples
         --------
         >>> reg_a = icepyx.icesat2data.Icesat2Data('ATL06',[-55, 68, -48, 71],['2019-02-20','2019-02-28'])
@@ -300,7 +279,7 @@ class Icesat2Data():
         if not hasattr(self, '_reqparams'):
             self._reqparams = apifmt.Parameters('required', reqtype='search')
             self._reqparams.build_params()
-              
+
         return self._reqparams.fmted_keys
 
     # @property
@@ -317,7 +296,7 @@ class Icesat2Data():
             By default temporal and spatial subset keys are passed.
             Acceptable key values are ['format','projection','projection_parameters','Coverage'].
             At this time (2020-05), only variable ('Coverage') parameters will be automatically formatted.
-        
+
         See Also
         --------
         order_granules
@@ -329,7 +308,7 @@ class Icesat2Data():
         {'time': '2019-02-20T00:00:00,2019-02-28T23:59:59', 'bbox': '-55,68,-48,71'}
         """
         if not hasattr(self, '_subsetparams'): self._subsetparams = apifmt.Parameters('subset')
-        
+
         if self._subsetparams==None and not kwargs:
             return {}
         else:
@@ -343,13 +322,13 @@ class Icesat2Data():
                             extent_type=self.extent_type, spatial_extent=self._spat_extent, **kwargs)
 
             return self._subsetparams.fmted_keys
-    
+
     #DevGoal: add to tests
     #DevGoal: add statements to the following vars properties to let the user know if they've got a mismatched source and vars type
     @property
     def order_vars(self):
         """
-        Return the order variables object. 
+        Return the order variables object.
         This instance is generated when data is ordered from the NSIDC.
 
         See Also
@@ -364,7 +343,7 @@ class Icesat2Data():
         >>> reg_a.order_vars
         <icepyx.core.variables.Variables at [location]>
         """
-        
+
         if not hasattr(self, '_order_vars'):
             if self._source == 'order':
                 #DevGoal: check for active session here
@@ -373,7 +352,7 @@ class Icesat2Data():
                 else:
                     self._order_vars = Variables(self._source, session=self._session, dataset=self.dataset, version=self._version)
 
-        # I think this is where property setters come in, and one should be used here? Right now order_vars.avail is only filled in 
+        # I think this is where property setters come in, and one should be used here? Right now order_vars.avail is only filled in
         #if _cust_options exists when the class is initialized, but not if _cust_options is filled in prior to another call to order_vars
         # if self._order_vars.avail == None and hasattr(self, '_cust_options'):
         #     print('got into the loop')
@@ -400,7 +379,7 @@ class Icesat2Data():
         >>> reg_a.file_vars
         <icepyx.core.variables.Variables at [location]>
         """
-        
+
         if not hasattr(self, '_file_vars'):
             if self._source == 'file':
                 self._file_vars = Variables(self._source, dataset=self.dataset)
@@ -432,7 +411,7 @@ class Icesat2Data():
             self._granules = Granules()
         elif self._granules==None:
             self._granules = Granules()
-        
+
         return self._granules
 
 
@@ -441,7 +420,7 @@ class Icesat2Data():
 
     def dataset_summary_info(self):
         """
-        Display a summary of selected metadata for the specified version of the dataset 
+        Display a summary of selected metadata for the specified version of the dataset
         of interest (the collection).
 
         Examples
@@ -491,7 +470,7 @@ class Icesat2Data():
     def show_custom_options(self, dictview=False):
         """
         Display customization/subsetting options available for this dataset.
-        
+
         Parameters
         ----------
         dictview : boolean, default False
@@ -549,7 +528,7 @@ class Icesat2Data():
             else:
                 pprint.pprint(self._cust_options[k])
 
-  
+
 
     # ----------------------------------------------------------------------
     # Methods - Login and Granules (NSIDC-API)
@@ -576,7 +555,7 @@ class Icesat2Data():
         >>> reg_a.earthdata_login(user_id,user_email)
         Earthdata Login password:  ········
         """
-    
+
         capability_url = f'https://n5eil02u.ecs.nsidc.org/egi/capabilities/{self.dataset}.{self._version}.xml'
         self._session = Earthdata(uid,email,capability_url).login()
         self._email = email
@@ -584,7 +563,7 @@ class Icesat2Data():
     #DevGoal: check to make sure the see also bits of the docstrings work properly in RTD
     def avail_granules(self, ids=False):
         """
-        Obtain information about the available granules for the icesat2data 
+        Obtain information about the available granules for the icesat2data
         object's parameters. By default, a complete list of available granules is
         obtained and stored in the object, but only summary information is returned.
         A list of granule IDs can be obtained using the boolean trigger.
@@ -607,7 +586,7 @@ class Icesat2Data():
         >>> reg_a.avail_granules(ids=True)
 
         """
-        
+
 #         REFACTOR: add test to make sure there's a session
         if not hasattr(self, '_granules'): self.granules
         try: self.granules.avail
@@ -647,7 +626,7 @@ class Icesat2Data():
             Acceptable key values are ['format','projection','projection_parameters','Coverage'].
             The variable 'Coverage' list should be constructed using the `order_vars.wanted` attribute of the object.
             At this time (2020-05), only variable ('Coverage') parameters will be automatically formatted.
-        
+
         See Also
         --------
         granules.place_order
@@ -656,7 +635,7 @@ class Icesat2Data():
         --------
         >>> reg_a = icepyx.icesat2data.Icesat2Data('ATL06',[-55, 68, -48, 71],['2019-02-20','2019-02-28'])
         >>> reg_a.earthdata_login(user_id,user_email)
-        Earthdata Login password:  ········        
+        Earthdata Login password:  ········
         >>> reg_a.order_granules()
         order ID: [###############]
         [order status output]
@@ -667,13 +646,13 @@ class Icesat2Data():
         .
         Retry request status is: complete
         """
-        
+
         if not hasattr(self, 'reqparams'): self.reqparams
-        
+
         if self._reqparams._reqtype == 'search':
             self._reqparams._reqtype = 'download'
 
-        
+
         if 'email' in self._reqparams.fmted_keys.keys() or email==False:
             self._reqparams.build_params(**self._reqparams.fmted_keys)
         else:
@@ -684,7 +663,7 @@ class Icesat2Data():
             self._subsetparams=None
         elif subset==True and hasattr(self, '_subsetparams') and self._subsetparams==None:
             del self._subsetparams
-     
+
         #REFACTOR: add checks here to see if the granules object has been created, and also if it already has a list of avail granules (if not, need to create one and add session)
         if not hasattr(self, '_granules'): self.granules
         self._granules.place_order(self.CMRparams, self.reqparams, self.subsetparams(**kwargs), verbose, subset, session=self._session, geom_filepath=self._geom_filepath)
@@ -709,7 +688,7 @@ class Icesat2Data():
             Spatial subsetting returns all data that are within the area of interest (but not complete
             granules. This eliminates false-positive granules returned by the metadata-level search)
         restart: boolean, default false
-            If previous download was terminated unexpectedly. Run again with restart set to True to continue. 
+            If previous download was terminated unexpectedly. Run again with restart set to True to continue.
         **kwargs : key-value pairs
             Additional parameters to be passed to the subsetter.
             By default temporal and spatial subset keys are passed.
@@ -734,18 +713,18 @@ class Icesat2Data():
         Beginning download of zipped output...
         Data request [##########] of x order(s) is complete.
         """
-     
+
         # if not os.path.exists(path):
         #     os.mkdir(path)
         # os.chdir(path)
 
         if not hasattr(self, '_granules'): self.granules
-        
+
         if restart == True:
             pass
         else:
             if not hasattr(self._granules, 'orderIDs') or len(self._granules.orderIDs)==0: self.order_granules(verbose=verbose, subset=subset, **kwargs)
-    
+
         self._granules.download(verbose, path, session=self._session, restart=restart)
 
     #DevGoal: Uses the NSIDC API to query metadata. Returns trackId, Dates, and cycle within bbox.
@@ -835,7 +814,7 @@ class Icesat2Data():
 
         track_df = pd.DataFrame.from_dict(points)
         return track_df
-   
+
     #DevGoal: add testing? What do we test, and how, given this is a visualization.
     #DevGoal(long term): modify this to accept additional inputs, etc.
     #DevGoal: move this to it's own module for visualizing, etc.
@@ -904,10 +883,8 @@ class Icesat2Data():
                     colorbar = fig2.colorbar(cs, ax=ax2)
                     colorbar.set_label('Elevation(m)', fontsize=15)
                     colorbar.ax.tick_params(labelsize=15)
-                    
+
                     self.OA_data = gdf_OA
 
         plt.tight_layout()
         plt.show()
-
-
